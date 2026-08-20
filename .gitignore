@@ -1,0 +1,28 @@
+# Go build output
+/terraform-provider-playit
+*.exe
+*.test
+*.out
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+
+# GoReleaser
+/dist/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local architecture notes, deliberately untracked
+DESIGN.md

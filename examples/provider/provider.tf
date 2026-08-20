@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     playit = {
-      source = "vshxp/playit"
+      source = "matf0r/playit"
     }
   }
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/vshxp/terraform-provider-playit/internal/playit"
+	"github.com/matf0r/terraform-provider-playit/internal/playit"
 )
 
 func allocatedTunnel() *playit.AccountTunnel {

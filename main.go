@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
-	"github.com/vshxp/terraform-provider-playit/internal/provider"
+	"github.com/matf0r/terraform-provider-playit/internal/provider"
 )
 
 // version is overwritten at build time by GoReleaser.
@@ -20,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	err := providerserver.Serve(context.Background(), provider.New(version), providerserver.ServeOpts{
-		Address: "registry.terraform.io/vshxp/playit",
+		Address: "registry.terraform.io/matf0r/playit",
 		Debug:   debug,
 	})
 	if err != nil {

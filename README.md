@@ -28,7 +28,7 @@ playit agent — the agent is expected to be running on the host already.
 terraform {
   required_providers {
     playit = {
-      source = "vshxp/playit"
+      source = "matf0r/playit"
     }
   }
 }
@@ -89,7 +89,7 @@ To try the provider before it is published, point Terraform at your local build 
 ```hcl
 provider_installation {
   dev_overrides {
-    "vshxp/playit" = "/path/to/your/gopath/bin"
+    "matf0r/playit" = "/path/to/your/gopath/bin"
   }
   direct {}
 }

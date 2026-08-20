@@ -15,7 +15,7 @@ Manages [playit.gg](https://playit.gg) tunnels. The provider drives the playit c
 terraform {
   required_providers {
     playit = {
-      source = "vshxp/playit"
+      source = "matf0r/playit"
     }
   }
 }

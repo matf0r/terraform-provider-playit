@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 
-	"github.com/vshxp/terraform-provider-playit/internal/playit"
+	"github.com/matf0r/terraform-provider-playit/internal/playit"
 )
 
 // failGuidance maps a playit failure code to an actionable explanation.

@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"github.com/vshxp/terraform-provider-playit/internal/playit"
+	"github.com/matf0r/terraform-provider-playit/internal/playit"
 )
 
 const (

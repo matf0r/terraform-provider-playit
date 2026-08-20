@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/vshxp/terraform-provider-playit/internal/playit"
+	"github.com/matf0r/terraform-provider-playit/internal/playit"
 )
 
 // The playit API models optional fields as Option<T> and expects an explicit

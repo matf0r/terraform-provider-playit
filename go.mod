@@ -1,4 +1,4 @@
-module github.com/vshxp/terraform-provider-playit
+module github.com/matf0r/terraform-provider-playit
 
 go 1.25.13
 

@@ -60,15 +60,89 @@ output "server_address" {
 
 ## Authentication
 
-The provider authenticates with a playit agent secret key, taken from the `secret_key` provider
-attribute or the `PLAYIT_SECRET_KEY` environment variable.
+The provider authenticates with a **playit agent secret key** — a hex string that authorises every
+control plane action: listing, creating, updating and destroying tunnels.
 
-The key is the one your agent already uses. Find it with `playit secret-path`, or in the agent's
-`playit.toml`.
+Supply it through the `PLAYIT_SECRET_KEY` environment variable, or the `secret_key` provider
+attribute. Prefer the environment variable: the attribute is marked sensitive and is kept out of
+logs, but a value written into a `.tf` file still ends up in version control.
+
+### On a host that already runs the agent
+
+`playit secret-path` prints the path of the file holding the key, and `playit status` reports the
+same path along with whether a secret is currently loaded:
 
 ```sh
-export PLAYIT_SECRET_KEY="$(cat "$(playit secret-path)")"
+playit secret-path
 ```
+
+The agent resolves that path in order:
+
+| Order | Location |
+| --- | --- |
+| 1 | `./playit.toml` in the working directory |
+| 2 | `/etc/playit/playit.toml` — Linux, when the service is installed |
+| 3 | `playit.toml` in the platform configuration directory |
+
+The file comes in one of two shapes: the bare key as the entire contents, or TOML carrying a
+`secret_key` entry. Reading it with `cat` therefore does not always give you the key. This handles
+both, since the key is the only long hex run in either form:
+
+```sh
+export PLAYIT_SECRET_KEY="$(grep -oE '[0-9a-fA-F]{16,}' "$(playit secret-path)" | head -1)"
+```
+
+Reading `/etc/playit/playit.toml` usually needs root.
+
+### When the agent runs in Docker
+
+The official image takes the key as an environment variable rather than a file:
+
+```yaml
+services:
+  playit:
+    image: ghcr.io/playit-cloud/playit-agent:0.15
+    environment:
+      - SECRET_KEY=${PLAYIT_SECRET}
+```
+
+There is usually no volume and no `playit.toml` inside the container, so `playit secret-path` does
+not apply — there is no file for it to point at. Read the value back from the container instead:
+
+```sh
+docker inspect <container> --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | sed -n 's/^SECRET_KEY=//p'
+```
+
+That reports what the running container was started with, which is not necessarily what the compose
+file says today: editing the `.env` changes nothing until the container is recreated. Where the two
+disagree, the container is what is actually authenticating, and the `.env` is what the next
+`docker compose up -d` will use.
+
+Note that container environment variables are readable by anyone who can talk to the Docker daemon,
+so a key supplied this way is only as private as access to the host.
+
+### Without an agent installed
+
+Claim a new agent from your playit account. The Docker setup page,
+[playit.gg/account/agents/new-docker](https://playit.gg/account/agents/new-docker), shows the
+`SECRET_KEY` as part of the command it generates; the key is valid whether or not you go on to run
+the agent under Docker.
+
+Keys cannot be created through the API — claiming an agent is a browser flow — which is why the
+provider treats agents as out of scope.
+
+### For the acceptance tests in CI
+
+The acceptance job reads the key from a repository secret of the same name:
+
+```sh
+gh secret set PLAYIT_SECRET_KEY --repo matf0r/terraform-provider-playit
+```
+
+Those tests run against the real playit API and create tunnels on the account the key belongs to, so
+point it at an account you are willing to have written to. The rest of the suite drives the provider
+against an in-process stub and needs no secret at all.
 
 ## Requirements
 

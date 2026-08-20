@@ -18,18 +18,109 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+
       - run: go mod download
+
       - name: Verify formatting
+        id: fmt
         run: |
           unformatted="$(gofmt -l .)"
           if [ -n "$unformatted" ]; then
+            {
+              echo 'files<<GOFMT_EOF'
+              echo "$unformatted"
+              echo 'GOFMT_EOF'
+            } >> "$GITHUB_OUTPUT"
             echo "These files need gofmt:"
             echo "$unformatted"
             exit 1
           fi
-      - run: go vet ./...
-      - run: go build ./...
-      - run: go test ./... -race -timeout 5m
+
+      - name: Vet
+        id: vet
+        run: go vet ./...
+
+      - name: Build
+        id: build
+        run: go build ./...
+
+      - name: Test
+        id: test
+        run: |
+          set -o pipefail
+          go test ./... -race -timeout 5m -covermode=atomic -coverprofile=coverage.out 2>&1 \
+            | tee test-output.txt
+
+      # Renders on the run page, so a failure is legible without opening logs.
+      - name: Summary
+        if: always()
+        run: |
+          mark() {
+            case "$1" in
+              success) echo 'pass' ;;
+              failure) echo '**fail**' ;;
+              skipped) echo 'not reached' ;;
+              *)       echo "$1" ;;
+            esac
+          }
+
+          {
+            echo '## Build and unit test'
+            echo
+            echo "Go \`$(go version | cut -d' ' -f3)\` on \`${RUNNER_OS}\`"
+            echo
+            echo '| Step | Result |'
+            echo '| --- | --- |'
+            echo "| Formatting | $(mark '${{ steps.fmt.outcome }}') |"
+            echo "| Vet | $(mark '${{ steps.vet.outcome }}') |"
+            echo "| Build | $(mark '${{ steps.build.outcome }}') |"
+            echo "| Tests | $(mark '${{ steps.test.outcome }}') |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Name the offending files rather than making someone hunt the logs.
+          if [ -n '${{ steps.fmt.outputs.files }}' ]; then
+            {
+              echo
+              echo '### Files needing gofmt'
+              echo
+              echo '```'
+              echo '${{ steps.fmt.outputs.files }}'
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -f coverage.out ]; then
+            total="$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')"
+            {
+              echo
+              echo "**Statement coverage:** ${total}"
+              echo
+              echo '| Package | Coverage |'
+              echo '| --- | --- |'
+              # go test already reports per-package coverage; the package is the
+              # first field containing a slash, since packages without tests are
+              # printed without the leading "ok".
+              grep -E 'coverage: [0-9.]+% of statements' test-output.txt \
+                | while read -r line; do
+                    pkg="$(echo "$line" | awk '{for (i=1; i<=NF; i++) if ($i ~ /\//) {print $i; exit}}')"
+                    pct="$(echo "$line" | grep -oE 'coverage: [0-9.]+%' | cut -d' ' -f2)"
+                    echo "| \`${pkg}\` | ${pct} |"
+                  done
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -f test-output.txt ]; then
+            {
+              echo
+              echo '<details><summary>Test output</summary>'
+              echo
+              echo '```'
+              cat test-output.txt
+              echo '```'
+              echo
+              echo '</details>'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   docs:
     name: Documentation is up to date
@@ -40,9 +131,41 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+
       - run: go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate
+
       - name: Fail if generated docs differ from the committed ones
+        id: diff
         run: git diff --exit-code -- docs/
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ '${{ steps.diff.outcome }}' = 'success' ]; then
+            {
+              echo '## Documentation'
+              echo
+              echo 'Committed output under `docs/` matches what `tfplugindocs` generates.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## Documentation is stale'
+              echo
+              echo 'Regenerate and commit the result:'
+              echo
+              echo '```sh'
+              echo 'go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate'
+              echo '```'
+              echo
+              echo '<details><summary>Diff</summary>'
+              echo
+              echo '```diff'
+              git diff -- docs/ | head -300
+              echo '```'
+              echo
+              echo '</details>'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   acceptance:
     name: Acceptance tests
@@ -60,7 +183,37 @@ jobs:
         with:
           terraform_version: '1.15.*'
           terraform_wrapper: false
-      - run: go test ./... -v -timeout 20m
+
+      - name: Acceptance tests
+        id: acc
+        run: |
+          set -o pipefail
+          go test ./... -v -timeout 20m 2>&1 | tee acceptance-output.txt
         env:
           TF_ACC: '1'
           PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## Acceptance tests'
+            echo
+            if [ -z "${{ secrets.PLAYIT_SECRET_KEY }}" ]; then
+              echo 'Skipped: no `PLAYIT_SECRET_KEY` secret is configured on this repository.'
+            else
+              echo "Result: ${{ steps.acc.outcome }}"
+              echo
+              echo 'These run against the real playit API and create billable objects.'
+            fi
+            if [ -f acceptance-output.txt ]; then
+              echo
+              echo '<details><summary>Output</summary>'
+              echo
+              echo '```'
+              tail -200 acceptance-output.txt
+              echo '```'
+              echo
+              echo '</details>'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

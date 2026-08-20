@@ -3,6 +3,8 @@
 *.exe
 *.test
 *.out
+test-output.txt
+acceptance-output.txt
 
 # Terraform
 .terraform/

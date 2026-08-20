@@ -22,7 +22,7 @@ jobs:
       # Part of the suite drives the provider through Terraform itself against
       # an in-process stub, so the binary has to be present even though nothing
       # here touches the real playit API.
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.15.*'
           terraform_wrapper: false
@@ -187,7 +187,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.15.*'
           terraform_wrapper: false

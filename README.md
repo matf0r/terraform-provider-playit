@@ -10,10 +10,6 @@ Terraform, so tunnels can live in the same configuration as the infrastructure t
 > **Status: pre-release, under active development.** Nothing is published to the Terraform Registry
 > yet and the schema may still change without notice.
 
-> **Note on the repository name.** The Terraform Registry requires the repository to be named
-> `terraform-provider-playit`. This checkout is currently `playit-terraform-provider`; it must be
-> renamed on GitHub before publishing.
-
 ## Scope
 
 The provider manages the control plane only. It does **not** install, configure, or supervise the
@@ -93,6 +89,13 @@ provider_installation {
   }
   direct {}
 }
+```
+
+Documentation is generated from the schema. The provider name has to be passed explicitly, because
+`tfplugindocs` otherwise infers it from the directory name:
+
+```sh
+go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate --provider-name playit
 ```
 
 Acceptance tests talk to the real playit API and are skipped unless explicitly enabled:

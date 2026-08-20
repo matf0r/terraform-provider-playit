@@ -91,11 +91,11 @@ provider_installation {
 }
 ```
 
-Documentation is generated from the schema. The provider name has to be passed explicitly, because
-`tfplugindocs` otherwise infers it from the directory name:
+Documentation under `docs/` is generated from the schema and from the examples, and CI fails if the
+committed output is stale:
 
 ```sh
-go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate --provider-name playit
+go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate
 ```
 
 Acceptance tests talk to the real playit API and are skipped unless explicitly enabled:

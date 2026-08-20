@@ -40,7 +40,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - run: go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate --provider-name playit
+      - run: go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate
       - name: Fail if generated docs differ from the committed ones
         run: git diff --exit-code -- docs/
 

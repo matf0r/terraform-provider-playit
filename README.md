@@ -1,5 +1,9 @@
 # terraform-provider-playit
 
+[![Test](https://github.com/matf0r/terraform-provider-playit/actions/workflows/test.yml/badge.svg)](https://github.com/matf0r/terraform-provider-playit/actions/workflows/test.yml)
+[![Go](https://img.shields.io/github/go-mod/go-version/matf0r/terraform-provider-playit?logo=go&logoColor=white)](go.mod)
+[![License](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
+
 A [Terraform](https://www.terraform.io) provider for [playit.gg](https://playit.gg), built on the
 [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework).
 

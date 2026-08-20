@@ -10,6 +10,10 @@ Terraform, so tunnels can live in the same configuration as the infrastructure t
 > **Status: pre-release, under active development.** Nothing is published to the Terraform Registry
 > yet and the schema may still change without notice.
 
+> **Note on the repository name.** The Terraform Registry requires the repository to be named
+> `terraform-provider-playit`. This checkout is currently `playit-terraform-provider`; it must be
+> renamed on GitHub before publishing.
+
 ## Scope
 
 The provider manages the control plane only. It does **not** install, configure, or supervise the
@@ -17,12 +21,12 @@ playit agent — the agent is expected to be running on the host already.
 
 | Object | Support |
 |---|---|
-| Tunnels | Full CRUD, planned for the first release |
+| Tunnels | Full CRUD |
 | Domains | Read-only — the API exposes no create/bind/delete |
 | Agents | Read-only — agents are created through playit's browser claim flow, not the API |
 | Port allocations | Not a standalone object; configured as part of a tunnel |
 
-## Planned usage
+## Usage
 
 ```hcl
 terraform {
@@ -43,7 +47,7 @@ resource "playit_tunnel" "minecraft" {
   tunnel_type = "minecraft-java"
   port_type   = "tcp"
 
-  origin {
+  origin = {
     local_ip   = "127.0.0.1"
     local_port = 25565
   }
@@ -96,6 +100,11 @@ Acceptance tests talk to the real playit API and are skipped unless explicitly e
 ```sh
 TF_ACC=1 PLAYIT_SECRET_KEY=... go test ./... -v
 ```
+
+## Documentation
+
+Reference documentation for the provider and its resources lives in [`docs/`](docs/),
+generated from the schema with `tfplugindocs`.
 
 ## License
 

@@ -1,5 +1,9 @@
 # terraform-provider-playit
 
+[![Test](https://github.com/matf0r/terraform-provider-playit/actions/workflows/test.yml/badge.svg)](https://github.com/matf0r/terraform-provider-playit/actions/workflows/test.yml)
+[![Go](https://img.shields.io/github/go-mod/go-version/matf0r/terraform-provider-playit?logo=go&logoColor=white)](go.mod)
+[![License](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
+
 A [Terraform](https://www.terraform.io) provider for [playit.gg](https://playit.gg), built on the
 [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework).
 
@@ -17,18 +21,18 @@ playit agent — the agent is expected to be running on the host already.
 
 | Object | Support |
 |---|---|
-| Tunnels | Full CRUD, planned for the first release |
+| Tunnels | Full CRUD |
 | Domains | Read-only — the API exposes no create/bind/delete |
 | Agents | Read-only — agents are created through playit's browser claim flow, not the API |
 | Port allocations | Not a standalone object; configured as part of a tunnel |
 
-## Planned usage
+## Usage
 
 ```hcl
 terraform {
   required_providers {
     playit = {
-      source = "vshxp/playit"
+      source = "matf0r/playit"
     }
   }
 }
@@ -43,7 +47,7 @@ resource "playit_tunnel" "minecraft" {
   tunnel_type = "minecraft-java"
   port_type   = "tcp"
 
-  origin {
+  origin = {
     local_ip   = "127.0.0.1"
     local_port = 25565
   }
@@ -79,16 +83,27 @@ go build ./...
 go test ./...
 ```
 
+Part of the suite drives the provider through Terraform itself against an in-process stub of the
+playit API, so a `terraform` binary must be on `PATH`. Those tests need no credentials and make no
+network calls.
+
 To try the provider before it is published, point Terraform at your local build with a
 `dev_overrides` block in `~/.terraformrc`:
 
 ```hcl
 provider_installation {
   dev_overrides {
-    "vshxp/playit" = "/path/to/your/gopath/bin"
+    "matf0r/playit" = "/path/to/your/gopath/bin"
   }
   direct {}
 }
+```
+
+Documentation under `docs/` is generated from the schema and from the examples, and CI fails if the
+committed output is stale:
+
+```sh
+go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest generate
 ```
 
 Acceptance tests talk to the real playit API and are skipped unless explicitly enabled:
@@ -96,6 +111,11 @@ Acceptance tests talk to the real playit API and are skipped unless explicitly e
 ```sh
 TF_ACC=1 PLAYIT_SECRET_KEY=... go test ./... -v
 ```
+
+## Documentation
+
+Reference documentation for the provider and its resources lives in [`docs/`](docs/),
+generated from the schema with `tfplugindocs`.
 
 ## License
 

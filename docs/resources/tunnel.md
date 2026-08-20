@@ -72,13 +72,16 @@ resource "playit_tunnel" "valheim" {
 ~> **This can cost money.** A dedicated IP or a reserved port allocation is a paid playit feature, and applying a configuration that requests one will incur charges on your account. Omit `alloc` entirely to use the free shared allocation.
 
 Changing any part of this forces replacement; allocation is fixed at creation. (see [below for nested schema](#nestedatt--alloc))
+- `description` (String) Free-text description. **Required when `tunnel_type` is not set**: the API refuses to create a custom tunnel without one. It is not reported back on read, so it is tracked from configuration.
 - `enabled` (Boolean) Whether the tunnel accepts traffic. Note that the API does not report this back, so it is tracked from configuration; use `active` to observe reachability.
 - `firewall_id` (String) Identifier of a firewall to attach to the tunnel.
 - `name` (String) Human-readable name shown in the playit dashboard.
 - `port_count` (Number) Number of consecutive ports to allocate. Defaults to 1.
 - `proxy_protocol` (String) Prepend a PROXY protocol header to forwarded connections: `proxy-protocol-v1`, `proxy-protocol-v2`.
 - `ratelimit` (Attributes) Throughput caps. Requires a playit premium subscription. (see [below for nested schema](#nestedatt--ratelimit))
-- `tunnel_type` (String) Game or protocol preset. Omit this for a custom tunnel; there is no `custom` value. One of: `minecraft-java`, `minecraft-bedrock`, `valheim`, `terraria`, `starbound`, `rust`, `7days`, `unturned`, `https`.
+- `tunnel_type` (String) Game or protocol preset. Omit it for a custom tunnel — there is no `custom` value — and set `description` instead.
+
+The service adds presets over time and publishes no list, so this is not validated locally; an unknown value is rejected by the API rather than by the provider. Known values include `minecraft-java`, `minecraft-bedrock`, `valheim`, `terraria`, `starbound`, `rust`, `7days`, `unturned`, `https`.
 
 ### Read-Only
 
@@ -89,7 +92,7 @@ Changing any part of this forces replacement; allocation is fixed at creation. (
 - `disabled_reason` (String) Why playit disabled the tunnel, if it did.
 - `id` (String) Tunnel identifier.
 - `ip_hostname` (String) Hostname of the allocated public IP.
-- `port_end` (Number) Last allocated public port.
+- `port_end` (Number) End of the allocated range, exclusive: a tunnel with `port_count = 1` reports `port_end` one above `port_start`.
 - `port_start` (Number) First allocated public port.
 - `public_address` (String) Address to connect to: the SRV record when one exists, otherwise `assigned_domain:port_start`.
 - `region` (String) Region serving the tunnel.

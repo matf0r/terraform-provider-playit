@@ -189,9 +189,12 @@ func TestExpandOriginInfersVariant(t *testing.T) {
 		want string
 	}{
 		{
-			name: "local address only is a default origin",
+			// Never "default": a self-managed key cannot create against the
+			// account's default agent, so the provider names one explicitly and
+			// falls back to the agent the key itself is.
+			name: "local address only is still an agent origin",
 			in:   originModel{AgentID: types.StringNull(), LocalIP: types.StringValue("127.0.0.1")},
-			want: playit.OriginDefault,
+			want: playit.OriginAgent,
 		},
 		{
 			name: "agent plus local address is an agent origin",

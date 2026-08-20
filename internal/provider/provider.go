@@ -38,6 +38,10 @@ func New(version string) func() provider.Provider {
 type providerConfig struct {
 	client        *playit.Client
 	createTimeout time.Duration
+	// agentID is the agent the secret key belongs to. Tunnels bind to it
+	// whenever the configuration does not name one, because the API rejects a
+	// "default" origin from a self-managed key.
+	agentID string
 }
 
 type providerModel struct {
@@ -132,8 +136,10 @@ func (p *playitProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	client := playit.NewClient(secretKey, opts...)
 
 	// Verify the credential up front so an invalid key fails here rather than
-	// midway through an apply.
-	if _, err := client.AgentsRunData(ctx); err != nil {
+	// midway through an apply. The same call reports which agent the key is,
+	// which every tunnel then needs.
+	runData, err := client.AgentsRunData(ctx)
+	if err != nil {
 		if playit.IsAuth(err) {
 			resp.Diagnostics.AddAttributeError(
 				pathSecretKey(),
@@ -149,9 +155,17 @@ func (p *playitProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	tflog.Debug(ctx, "playit provider configured", map[string]any{"api_base": client.BaseURL()})
+	tflog.Debug(ctx, "playit provider configured", map[string]any{
+		"api_base":   client.BaseURL(),
+		"agent_id":   runData.AgentID,
+		"agent_type": runData.AgentType,
+	})
 
-	cfg := &providerConfig{client: client, createTimeout: createTimeout}
+	cfg := &providerConfig{
+		client:        client,
+		createTimeout: createTimeout,
+		agentID:       runData.AgentID,
+	}
 	resp.ResourceData = cfg
 	resp.DataSourceData = cfg
 }

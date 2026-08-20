@@ -69,10 +69,19 @@ func (r *tunnelResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Optional:            true,
 			},
 			"tunnel_type": schema.StringAttribute{
-				MarkdownDescription: "Game or protocol preset. Omit this for a custom tunnel; there is no " +
-					"`custom` value. One of: `" + joinBackticked(playit.TunnelTypes) + "`.",
+				MarkdownDescription: "Game or protocol preset. Omit it for a custom tunnel — there is no " +
+					"`custom` value — and set `description` instead.\n\n" +
+					"The service adds presets over time and publishes no list, so this is not validated " +
+					"locally; an unknown value is rejected by the API rather than by the provider. " +
+					"Known values include `" + joinBackticked(playit.TunnelTypes) + "`.",
 				Optional:      true,
-				Validators:    []validatorString{stringvalidator.OneOf(playit.TunnelTypes...)},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+			},
+			"description": schema.StringAttribute{
+				MarkdownDescription: "Free-text description. **Required when `tunnel_type` is not set**: " +
+					"the API refuses to create a custom tunnel without one. It is not reported back on " +
+					"read, so it is tracked from configuration.",
+				Optional:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"port_type": schema.StringAttribute{
@@ -220,7 +229,7 @@ func (r *tunnelResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"region":          computedString("Region serving the tunnel."),
 			"public_address":  computedString("Address to connect to: the SRV record when one exists, otherwise `assigned_domain:port_start`."),
 			"port_start":      computedInt64("First allocated public port."),
-			"port_end":        computedInt64("Last allocated public port."),
+			"port_end":        computedInt64("End of the allocated range, exclusive: a tunnel with `port_count = 1` reports `port_end` one above `port_start`."),
 		},
 	}
 }
@@ -253,7 +262,7 @@ func (r *tunnelResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	createReq, diags := plan.expandCreate()
+	createReq, diags := plan.expandCreate(r.cfg.agentID)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

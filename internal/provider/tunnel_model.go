@@ -11,6 +11,7 @@ type tunnelModel struct {
 	ID            types.String `tfsdk:"id"`
 	Name          types.String `tfsdk:"name"`
 	TunnelType    types.String `tfsdk:"tunnel_type"`
+	Description   types.String `tfsdk:"description"`
 	PortType      types.String `tfsdk:"port_type"`
 	PortCount     types.Int64  `tfsdk:"port_count"`
 	Enabled       types.Bool   `tfsdk:"enabled"`
@@ -66,7 +67,7 @@ type allocPortModel struct {
 // Model -> wire
 // ---------------------------------------------------------------------------
 
-func (m *tunnelModel) expandCreate() (playit.ReqTunnelsCreate, diag.Diagnostics) {
+func (m *tunnelModel) expandCreate(keyAgentID string) (playit.ReqTunnelsCreate, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	req := playit.ReqTunnelsCreate{
@@ -80,9 +81,18 @@ func (m *tunnelModel) expandCreate() (playit.ReqTunnelsCreate, diag.Diagnostics)
 	if tt := stringPtr(m.TunnelType); tt != nil {
 		converted := playit.TunnelType(*tt)
 		req.TunnelType = &converted
+	} else {
+		// A tunnel with no type is a custom one, and the API insists on a
+		// description for those.
+		req.TunnelDescription = stringPtr(m.Description)
+		if req.TunnelDescription == nil {
+			diags.AddAttributeError(pathDescription(), "Missing description",
+				"A tunnel with no tunnel_type is a custom tunnel, and the API requires a description for it. "+
+					"Set description, or set tunnel_type.")
+		}
 	}
 
-	origin, originDiags := m.Origin.expand()
+	origin, originDiags := m.Origin.expand(keyAgentID)
 	diags.Append(originDiags...)
 	req.Origin = origin
 
@@ -95,28 +105,21 @@ func (m *tunnelModel) expandCreate() (playit.ReqTunnelsCreate, diag.Diagnostics)
 
 // variant resolves which origin union member to send.
 //
-// It is inferred rather than configured. The type attribute is read-only,
-// because the control plane normalises a default origin into a concrete agent
-// one and reports it back as "agent"; letting a configuration assert "default"
-// would put config and state permanently at odds.
+// There is no "default" case. The API models a default origin as "the account's
+// default agent", which a self-managed agent is not; sending one from a
+// self-managed key is rejected with InvalidAgentId. The provider therefore
+// always names an agent explicitly, falling back to the one the secret key
+// itself belongs to.
 //
-// An agent with a local address is an agent origin, an agent without one is
-// managed, and anything else is a default origin bound to the caller's own
-// agent.
+// An origin with no local address is managed; anything else is an agent origin.
 func (o *originModel) variant() string {
-	hasAgent := !o.AgentID.IsNull() && !o.AgentID.IsUnknown() && o.AgentID.ValueString() != ""
-	hasLocal := !o.LocalIP.IsNull() && !o.LocalIP.IsUnknown() && o.LocalIP.ValueString() != ""
-	switch {
-	case hasAgent && hasLocal:
-		return playit.OriginAgent
-	case hasAgent && !hasLocal:
+	if o.LocalIP.IsNull() || o.LocalIP.IsUnknown() || o.LocalIP.ValueString() == "" {
 		return playit.OriginManaged
-	default:
-		return playit.OriginDefault
 	}
+	return playit.OriginAgent
 }
 
-func (o *originModel) expand() (playit.TunnelOriginCreate, diag.Diagnostics) {
+func (o *originModel) expand(keyAgentID string) (playit.TunnelOriginCreate, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	var out playit.TunnelOriginCreate
 
@@ -125,29 +128,34 @@ func (o *originModel) expand() (playit.TunnelOriginCreate, diag.Diagnostics) {
 		return out, diags
 	}
 
-	switch o.variant() {
-	case playit.OriginManaged:
-		out.Managed = &playit.AssignedManagedCreate{AgentID: stringPtr(o.AgentID)}
-
-	case playit.OriginAgent:
-		out.Agent = &playit.AssignedAgentCreate{
-			AgentID:   o.AgentID.ValueString(),
-			LocalIP:   o.LocalIP.ValueString(),
-			LocalPort: uint16Ptr(o.LocalPort),
-		}
-
-	default:
-		if o.LocalIP.IsNull() || o.LocalIP.ValueString() == "" {
-			diags.AddAttributeError(pathOriginLocalIP(), "Missing origin.local_ip",
-				"A default origin requires origin.local_ip to be set.")
-			return out, diags
-		}
-		out.Default = &playit.AssignedDefaultCreate{
-			LocalIP:   o.LocalIP.ValueString(),
-			LocalPort: uint16Ptr(o.LocalPort),
-		}
+	// An explicit agent wins; otherwise bind to whichever agent the secret key
+	// authenticates as.
+	agentID := keyAgentID
+	if configured := stringPtr(o.AgentID); configured != nil {
+		agentID = *configured
 	}
 
+	if o.variant() == playit.OriginManaged {
+		var managed *string
+		if agentID != "" {
+			managed = &agentID
+		}
+		out.Managed = &playit.AssignedManagedCreate{AgentID: managed}
+		return out, diags
+	}
+
+	if agentID == "" {
+		diags.AddAttributeError(pathOriginAgentID(), "Missing origin.agent_id",
+			"No agent was configured and the provider could not determine which agent the secret key "+
+				"belongs to. Set origin.agent_id explicitly.")
+		return out, diags
+	}
+
+	out.Agent = &playit.AssignedAgentCreate{
+		AgentID:   agentID,
+		LocalIP:   o.LocalIP.ValueString(),
+		LocalPort: uint16Ptr(o.LocalPort),
+	}
 	return out, diags
 }
 
@@ -224,7 +232,8 @@ func (m *tunnelModel) clearComputed() {
 //
 // Two fields are deliberately preserved rather than overwritten:
 //
-//   - alloc has no read counterpart at all; the API never echoes it back.
+//   - alloc and description have no read counterpart at all; the API never
+//     echoes either back.
 //   - enabled is the desired flag, which the legacy read model does not carry.
 //     Only "active" comes back, and that is false whenever the agent is merely
 //     offline. Conflating them would disable tunnels on the next apply.

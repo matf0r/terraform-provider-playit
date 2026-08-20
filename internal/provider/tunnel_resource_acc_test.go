@@ -219,9 +219,10 @@ func TestAccTunnel_customTunnelHasNoType(t *testing.T) {
 			{
 				Config: stubConfig(stub, `
 resource "playit_tunnel" "test" {
-  name       = "acc-syncthing"
-  port_type  = "both"
-  port_count = 2
+  name        = "acc-syncthing"
+  description = "file sync"
+  port_type   = "both"
+  port_count  = 2
 
   origin = {
     local_ip   = "192.168.1.20"
@@ -231,10 +232,12 @@ resource "playit_tunnel" "test" {
 `),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckNoResourceAttr(resourceName, "tunnel_type"),
+					resource.TestCheckResourceAttr(resourceName, "description", "file sync"),
 					resource.TestCheckResourceAttr(resourceName, "port_type", "both"),
 					resource.TestCheckResourceAttr(resourceName, "port_count", "2"),
 					resource.TestCheckResourceAttr(resourceName, "port_start", "31000"),
-					resource.TestCheckResourceAttr(resourceName, "port_end", "31001"),
+					// The range end is exclusive: two ports means 31000..31002.
+					resource.TestCheckResourceAttr(resourceName, "port_end", "31002"),
 				),
 			},
 		},
@@ -254,8 +257,9 @@ func TestAccTunnel_managedOrigin(t *testing.T) {
 			{
 				Config: stubConfig(stub, fmt.Sprintf(`
 resource "playit_tunnel" "test" {
-  name      = "acc-managed"
-  port_type = "tcp"
+  name        = "acc-managed"
+  description = "managed origin"
+  port_type   = "tcp"
 
   origin = {
     agent_id = %q

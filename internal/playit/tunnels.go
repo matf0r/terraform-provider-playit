@@ -1,9 +1,6 @@
 package playit
 
-import (
-	"context"
-	"encoding/json"
-)
+import "context"
 
 // TunnelsCreate creates a tunnel and returns its identifier.
 //
@@ -77,8 +74,12 @@ func (c *Client) TunnelsFirewallAssign(ctx context.Context, req ReqTunnelsFirewa
 	return err
 }
 
-// AgentsRunData is used only to verify credentials at configure time; the
-// payload itself is not modelled.
-func (c *Client) AgentsRunData(ctx context.Context) (json.RawMessage, error) {
-	return call[json.RawMessage](ctx, c, "/agents/rundata", struct{}{})
+// AgentsRunData reports which agent a secret key belongs to.
+//
+// It doubles as the credential probe at configure time, and supplies the agent
+// the provider binds tunnels to when the configuration does not name one: a
+// self-managed key cannot create a tunnel with a "default" origin, so an
+// explicit agent id is always required.
+func (c *Client) AgentsRunData(ctx context.Context) (AgentRunData, error) {
+	return call[AgentRunData](ctx, c, "/agents/rundata", struct{}{})
 }

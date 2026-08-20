@@ -24,6 +24,14 @@ type rawUnion struct {
 	Data json.RawMessage `json:"data"`
 }
 
+// AccountTunnelAllocation is the one union that does not use "type" as its
+// discriminator: the wire form is {"status":"allocated","data":{...}}. Decoding
+// it with the usual key silently yields an empty tag and fails every read.
+type rawStatusUnion struct {
+	Status string          `json:"status"`
+	Data   json.RawMessage `json:"data"`
+}
+
 func marshalUnion(tag string, payload any) ([]byte, error) {
 	if payload == nil {
 		return json.Marshal(struct {
@@ -34,6 +42,18 @@ func marshalUnion(tag string, payload any) ([]byte, error) {
 		Type string `json:"type"`
 		Data any    `json:"data"`
 	}{Type: tag, Data: payload})
+}
+
+func marshalStatusUnion(tag string, payload any) ([]byte, error) {
+	if payload == nil {
+		return json.Marshal(struct {
+			Status string `json:"status"`
+		}{Status: tag})
+	}
+	return json.Marshal(struct {
+		Status string `json:"status"`
+		Data   any    `json:"data"`
+	}{Status: tag, Data: payload})
 }
 
 func unknownVariant(union, tag string) error {
@@ -142,22 +162,22 @@ func (a *TunnelCreateUseAllocation) UnmarshalJSON(b []byte) error {
 func (a AccountTunnelAllocation) MarshalJSON() ([]byte, error) {
 	switch {
 	case a.Allocated != nil:
-		return marshalUnion("allocated", a.Allocated)
+		return marshalStatusUnion("allocated", a.Allocated)
 	case a.Disabled != nil:
-		return marshalUnion("disabled", a.Disabled)
+		return marshalStatusUnion("disabled", a.Disabled)
 	case a.Pending:
-		return marshalUnion("pending", nil)
+		return marshalStatusUnion("pending", nil)
 	}
 	return nil, errors.New("playit: AccountTunnelAllocation has no variant set")
 }
 
 func (a *AccountTunnelAllocation) UnmarshalJSON(b []byte) error {
-	var raw rawUnion
+	var raw rawStatusUnion
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
 	*a = AccountTunnelAllocation{}
-	switch raw.Type {
+	switch raw.Status {
 	case "pending":
 		a.Pending = true
 		return nil
@@ -168,5 +188,5 @@ func (a *AccountTunnelAllocation) UnmarshalJSON(b []byte) error {
 		a.Allocated = new(TunnelAllocated)
 		return json.Unmarshal(raw.Data, a.Allocated)
 	}
-	return unknownVariant("AccountTunnelAllocation", raw.Type)
+	return unknownVariant("AccountTunnelAllocation", raw.Status)
 }

@@ -16,8 +16,13 @@ var PortTypes = []string{string(PortTypeTCP), string(PortTypeUDP), string(PortTy
 
 // TunnelType is the game/protocol preset applied to a tunnel.
 //
-// The set is closed. There is no "custom" member: a custom tunnel is simply one
-// with no tunnel_type at all, which is why the field is a pointer everywhere.
+// There is no "custom" member: a custom tunnel is one with no tunnel_type at
+// all, which is why the field is a pointer everywhere.
+//
+// The set is open and the service adds to it, so the values below are examples
+// rather than an exhaustive list -- a live account was seen using
+// "left-4-dead-2", which appears in no published client. The provider does not
+// validate against them; the API is the authority.
 type TunnelType string
 
 const (
@@ -32,7 +37,8 @@ const (
 	TunnelTypeHTTPS            TunnelType = "https"
 )
 
-// TunnelTypes lists every accepted tunnel_type, for schema validation.
+// TunnelTypes lists known tunnel_type values, for documentation only. It is not
+// used for validation, because it is not exhaustive.
 var TunnelTypes = []string{
 	string(TunnelTypeMinecraftJava),
 	string(TunnelTypeMinecraftBedrock),
@@ -90,15 +96,19 @@ var OriginTypes = []string{OriginDefault, OriginAgent, OriginManaged}
 
 // ReqTunnelsCreate is the body of POST /tunnels/create.
 type ReqTunnelsCreate struct {
-	Name          *string                    `json:"name"`
-	TunnelType    *TunnelType                `json:"tunnel_type"`
-	PortType      PortType                   `json:"port_type"`
-	PortCount     uint16                     `json:"port_count"`
-	Origin        TunnelOriginCreate         `json:"origin"`
-	Enabled       bool                       `json:"enabled"`
-	Alloc         *TunnelCreateUseAllocation `json:"alloc"`
-	FirewallID    *string                    `json:"firewall_id"`
-	ProxyProtocol *ProxyProtocol             `json:"proxy_protocol"`
+	Name       *string     `json:"name"`
+	TunnelType *TunnelType `json:"tunnel_type"`
+	// TunnelDescription is required when TunnelType is nil; the API answers
+	// TunnelTypeRequiresDescription otherwise. It appears in no published
+	// client and is not echoed back on read.
+	TunnelDescription *string                    `json:"tunnel_description"`
+	PortType          PortType                   `json:"port_type"`
+	PortCount         uint16                     `json:"port_count"`
+	Origin            TunnelOriginCreate         `json:"origin"`
+	Enabled           bool                       `json:"enabled"`
+	Alloc             *TunnelCreateUseAllocation `json:"alloc"`
+	FirewallID        *string                    `json:"firewall_id"`
+	ProxyProtocol     *ProxyProtocol             `json:"proxy_protocol"`
 }
 
 // ReqTunnelsList is the body of POST /tunnels/list.
@@ -273,6 +283,12 @@ type TunnelAllocated struct {
 // ---------------------------------------------------------------------------
 // Responses
 // ---------------------------------------------------------------------------
+
+// AgentRunData is the part of /agents/rundata the provider needs.
+type AgentRunData struct {
+	AgentID   string `json:"agent_id"`
+	AgentType string `json:"agent_type"`
+}
 
 // ObjectID is the create response: the new tunnel's identifier and nothing else.
 type ObjectID struct {

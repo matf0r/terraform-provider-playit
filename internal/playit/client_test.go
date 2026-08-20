@@ -182,7 +182,7 @@ func TestTunnelsGetFiltersServerSide(t *testing.T) {
 	s := newStub(t, func(w http.ResponseWriter, _ *http.Request) {
 		respond(w, http.StatusOK, `{"status":"success","data":{"tunnels":[
 			{"id":"tun-1","port_type":"tcp","port_count":1,"created_at":"2026-01-01T00:00:00Z",
-			 "alloc":{"type":"pending"},"ratelimit":{"bytes_per_second":null,"packets_per_second":null},
+			 "alloc":{"status":"pending"},"ratelimit":{"bytes_per_second":null,"packets_per_second":null},
 			 "active":true}
 		],"tcp_alloc":{"allowed":1,"claimed":1,"desired":1},"udp_alloc":{"allowed":0,"claimed":0,"desired":0}}}`)
 	})

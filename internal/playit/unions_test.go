@@ -66,13 +66,53 @@ func TestUnionWireFormat(t *testing.T) {
 }
 
 // Unit variants carry no data key at all.
+//
+// Note the discriminator: allocation is the one union the API tags with
+// "status" rather than "type".
 func TestPendingAllocationHasNoDataKey(t *testing.T) {
 	got, err := json.Marshal(AccountTunnelAllocation{Pending: true})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if want := `{"type":"pending"}`; string(got) != want {
+	if want := `{"status":"pending"}`; string(got) != want {
 		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
+// Decoding allocation with the usual "type" key yields an empty tag and fails
+// every read of every tunnel, which is exactly what shipped once. This pins the
+// shape a live account actually returns.
+func TestAllocationUsesStatusAsDiscriminator(t *testing.T) {
+	const wire = `{"status":"allocated","data":{
+		"id":"77fe94d2-a61a-43ad-bbfb-88850f000000","ip_hostname":"ip.example",
+		"static_ip4":null,"static_ip6":"::1","assigned_domain":"cobra.playit.plus",
+		"assigned_srv":null,"tunnel_ip":"203.0.113.7","port_start":31000,"port_end":31000,
+		"assignment":{"type":"shared-ip"},"ip_type":"both","region":"south-america"}}`
+
+	var alloc AccountTunnelAllocation
+	if err := json.Unmarshal([]byte(wire), &alloc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if alloc.Allocated == nil {
+		t.Fatal("allocated variant not decoded")
+	}
+	if got := alloc.Allocated.AssignedDomain; got != "cobra.playit.plus" {
+		t.Errorf("assigned_domain = %q", got)
+	}
+}
+
+// Every other union really does use "type"; the origin of a live tunnel proves
+// the two conventions coexist.
+func TestOriginStillUsesTypeAsDiscriminator(t *testing.T) {
+	const wire = `{"type":"agent","data":{"agent_id":"2330714f-10e7-48f0-b31a-f56d73ce1af5",
+		"agent_name":"homelab","local_ip":"192.168.3.20","local_port":27015}}`
+
+	var origin TunnelOrigin
+	if err := json.Unmarshal([]byte(wire), &origin); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if origin.Agent == nil {
+		t.Fatal("agent variant not decoded")
 	}
 }
 

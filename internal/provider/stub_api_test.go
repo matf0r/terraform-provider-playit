@@ -129,13 +129,14 @@ func (s *stubAPI) handleRunData(w http.ResponseWriter, r *http.Request) {
 		stubAuthError(w)
 		return
 	}
-	stubOK(w, nil)
+	stubOK(w, map[string]any{"agent_id": stubAgentID, "agent_type": "self-managed"})
 }
 
 func (s *stubAPI) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name          *string `json:"name"`
 		TunnelType    *string `json:"tunnel_type"`
+		Description   *string `json:"tunnel_description"`
 		PortType      string  `json:"port_type"`
 		PortCount     int     `json:"port_count"`
 		Enabled       bool    `json:"enabled"`
@@ -151,6 +152,17 @@ func (s *stubAPI) handleCreate(w http.ResponseWriter, r *http.Request) {
 		} `json:"origin"`
 	}
 	decodeBody(r, &req)
+
+	// A self-managed key cannot create against the account's default agent.
+	if req.Origin.Type == "default" {
+		stubFail(w, "InvalidAgentId")
+		return
+	}
+	// A custom tunnel needs a description.
+	if req.TunnelType == nil && (req.Description == nil || *req.Description == "") {
+		stubFail(w, "TunnelTypeRequiresDescription")
+		return
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -210,9 +222,11 @@ func (s *stubAPI) handleList(w http.ResponseWriter, r *http.Request) {
 // allocation, so the provider's polling loop is genuinely exercised rather than
 // short-circuited.
 func (t *stubTunnel) render() map[string]any {
-	alloc := map[string]any{"type": "pending"}
+	// The real API tags this union with "status", not "type", unlike every
+	// other union it returns.
+	alloc := map[string]any{"status": "pending"}
 	if t.reads > 1 {
-		alloc = map[string]any{"type": "allocated", "data": map[string]any{
+		alloc = map[string]any{"status": "allocated", "data": map[string]any{
 			"id":              "alloc-" + t.id,
 			"ip_hostname":     "ip.example",
 			"static_ip4":      nil,
@@ -221,7 +235,7 @@ func (t *stubTunnel) render() map[string]any {
 			"assigned_srv":    nil,
 			"tunnel_ip":       "203.0.113.7",
 			"port_start":      stubPort,
-			"port_end":        stubPort + t.portCount - 1,
+			"port_end":        stubPort + t.portCount, // exclusive, as the real API reports it
 			"assignment":      map[string]any{"type": "shared-ip"},
 			"ip_type":         "both",
 			"region":          "europe",

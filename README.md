@@ -79,6 +79,10 @@ go build ./...
 go test ./...
 ```
 
+Part of the suite drives the provider through Terraform itself against an in-process stub of the
+playit API, so a `terraform` binary must be on `PATH`. Those tests need no credentials and make no
+network calls.
+
 To try the provider before it is published, point Terraform at your local build with a
 `dev_overrides` block in `~/.terraformrc`:
 

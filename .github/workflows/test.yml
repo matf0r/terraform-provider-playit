@@ -19,6 +19,14 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
+      # Part of the suite drives the provider through Terraform itself against
+      # an in-process stub, so the binary has to be present even though nothing
+      # here touches the real playit API.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.15.*'
+          terraform_wrapper: false
+
       - run: go mod download
 
       - name: Verify formatting
@@ -48,7 +56,7 @@ jobs:
         id: test
         run: |
           set -o pipefail
-          go test ./... -race -timeout 5m -covermode=atomic -coverprofile=coverage.out 2>&1 \
+          go test ./... -race -timeout 15m -covermode=atomic -coverprofile=coverage.out 2>&1 \
             | tee test-output.txt
 
       # Renders on the run page, so a failure is legible without opening logs.

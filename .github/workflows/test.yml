@@ -13,7 +13,7 @@ jobs:
     name: Build and unit test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -35,7 +35,7 @@ jobs:
     name: Documentation is up to date
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -51,7 +51,7 @@ jobs:
     # so they only run when a secret key is configured for the repository.
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
